@@ -1,0 +1,35 @@
+name: publish-snapshot
+# Manual trigger (Actions tab → Run workflow). Deploys a -SNAPSHOT to Central's snapshot repo.
+# Overwritable and unsigned — good for validating your Central token before a real release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Snapshot version (-SNAPSHOT is appended if missing)"
+        required: false
+        default: "0.0.1"
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          server-id: central                # matches the snapshotRepository id in the POM
+          server-username: CENTRAL_USERNAME  # env var names setup-java writes into settings.xml
+          server-password: CENTRAL_PASSWORD
+      - name: Set snapshot version
+        run: |
+          V="${{ github.event.inputs.version }}"
+          case "$V" in *-SNAPSHOT) ;; *) V="${V}-SNAPSHOT" ;; esac
+          echo "Deploying $V"
+          mvn -B versions:set -DnewVersion="$V" -DgenerateBackupPoms=false
+      - name: Deploy snapshot to Central
+        run: mvn -B deploy      # no release profile → plain deploy to the snapshot repo, no GPG
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}

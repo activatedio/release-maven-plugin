@@ -36,6 +36,15 @@
         <url>https://github.com/activatedio/release-maven-plugin</url>
     </scm>
 
+    <!-- Snapshots go to Central's snapshot repo via a plain `mvn deploy` (no signing required).
+         Real releases use central-publishing-maven-plugin in the `release` profile instead. -->
+    <distributionManagement>
+        <snapshotRepository>
+            <id>central</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
+
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
