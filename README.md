@@ -9,10 +9,17 @@ Coordinates: `io.activated:release-maven-plugin`
 
 ## Usage
 
+By default `bump` creates the tag **locally only** — it does not push, so it can't trigger a
+release by accident. Push the tag (or pass `-Drelease.push=true`) when you're ready to release.
+
 ```bash
-mvn release:bump                         # minor (default): latest v1.4.2 -> tags & pushes v1.5.0
+mvn release:bump                         # minor (default): latest v1.4.2 -> creates tag v1.5.0
 mvn release:bump -Drelease.level=patch   #                  v1.4.2 -> v1.4.3
 mvn release:bump -Drelease.level=major   #                  v1.4.2 -> v2.0.0
+
+git push origin v1.5.0                    # ...then push to trigger CI
+# or in one step:
+mvn release:bump -Drelease.push=true      # bump + push
 ```
 
 For the short `release:bump` form, add the plugin group to `~/.m2/settings.xml`:
@@ -31,7 +38,8 @@ Otherwise invoke it fully qualified: `mvn io.activated:release-maven-plugin:1.0.
 |---|---|---|
 | `release.level` | `minor` | `patch`, `minor`, or `major` |
 | `release.dryRun` | `false` | print what would happen; make no changes |
-| `release.push` | `true` | push the tag to the remote |
+| `release.push` | `false` | push the tag to the remote (this is what triggers a CI release) |
+| `release.allowDirty` | `false` | allow tagging with uncommitted changes in the working tree |
 | `release.remote` | `origin` | remote to push to |
 | `release.tagPrefix` | `v` | tag prefix (e.g. `v1.5.0`) |
 

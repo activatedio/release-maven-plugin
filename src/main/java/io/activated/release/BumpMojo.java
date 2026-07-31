@@ -15,8 +15,9 @@ import org.apache.maven.plugins.annotations.Parameter;
 
 /**
  * Read the latest semver tag reachable from HEAD, bump it by the requested {@code level}
- * (patch/minor/major, default minor), then create and push an annotated tag. Git is the source of
- * truth — nothing is written to the POM and no extra commits are made.
+ * (patch/minor/major, default minor), and create an annotated tag. Pushes only when
+ * {@code release.push=true}, so a release is never cut by accident. Git is the source of truth —
+ * nothing is written to the POM and no extra commits are made.
  *
  * <pre>
  *   mvn release:bump                          # minor  (default): v1.4.2 -&gt; v1.5.0
@@ -42,11 +43,17 @@ public class BumpMojo extends AbstractMojo {
     @Parameter(property = "release.remote", defaultValue = "origin")
     String remote;
 
-    @Parameter(property = "release.push", defaultValue = "true")
+    /** Push the new tag to the remote. Defaults to false so a release is never cut by accident;
+     *  push explicitly with -Drelease.push=true (or `git push` the tag) to trigger CI. */
+    @Parameter(property = "release.push", defaultValue = "false")
     boolean push;
 
     @Parameter(property = "release.dryRun", defaultValue = "false")
     boolean dryRun;
+
+    /** Refuse to tag when the working tree has uncommitted changes. Set true to bypass. */
+    @Parameter(property = "release.allowDirty", defaultValue = "false")
+    boolean allowDirty;
 
     @Override
     public void execute() throws MojoExecutionException {
@@ -72,6 +79,21 @@ public class BumpMojo extends AbstractMojo {
 
         getLog().info("Release (" + level + "): " + (base == null ? "(no tags yet)" : base)
                 + "  ->  " + newTag);
+
+        // Don't tag on top of uncommitted work — the tag would point at a commit that doesn't
+        // reflect the working tree. `git status --porcelain` respects .gitignore.
+        List<String> dirty = git(false, "status", "--porcelain");
+        if (!dirty.isEmpty() && !allowDirty) {
+            String msg = "Working tree is not clean (uncommitted changes):\n  "
+                    + String.join("\n  ", dirty)
+                    + "\nCommit or stash them first, or pass -Drelease.allowDirty=true.";
+            if (dryRun) {
+                getLog().warn(msg);
+            } else {
+                throw new MojoExecutionException(msg);
+            }
+        }
+
         if (dryRun) {
             getLog().info("[dryRun] would tag " + newTag + (push ? " and push to " + remote : ""));
             return;
